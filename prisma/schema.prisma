@@ -1,0 +1,375 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+// generator zod {
+//   provider = "prisma-zod-generator"
+//   output   = "./generated-zod-schemas"
+// }
+
+// generator erd {
+//   provider = "prisma-erd-generator"
+//   output   = "./ERD.svg"
+// }
+
+enum TeamRole {
+  SCRUM_MASTER
+  PRODUCT_OWNER
+  PROJECT_ARCHITECT
+  DESIGNER
+  TESTER
+  DEVELOPER
+
+  @@map(name: "team_roles")
+}
+
+enum IncrementStatus {
+  TODO
+  IN_PROGRESS
+  TESTING
+  DONE
+  BLOCKED
+
+  @@map(name: "increment_statuses")
+}
+
+enum IncrementType {
+  EPIC
+  USER_STORY
+  TASK
+  BUG
+
+  @@map(name: "increment_types")
+}
+
+enum ContractType {
+  FULL_TIME
+  PART_TIME
+  CONTRACTOR
+  FREELANCER
+  TEMPORARY
+  INTERNSHIP
+  VOLUNTEER
+
+  @@map(name: "contract_types")
+}
+
+model Epic {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  name          String
+  description   String?
+  increments    Increment[]
+  startDateTime DateTime
+  endDateTime   DateTime
+  project       Project     @relation(fields: [projectId], references: [id])
+  projectId     String
+
+  @@unique([name, projectId])
+  @@index([projectId])
+  @@map(name: "epics")
+}
+
+model Sprint {
+  id            String      @id @default(cuid())
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+  startDateTime DateTime
+  endDateTime   DateTime
+  increments    Increment[]
+  project       Project     @relation(fields: [projectId], references: [id])
+  projectId     String
+
+  @@index([projectId])
+  @@map(name: "sprints")
+}
+
+model Increment {
+  id            String          @id @default(cuid())
+  createdAt     DateTime        @default(now())
+  updatedAt     DateTime        @updatedAt
+  type          IncrementType
+  title         String
+  description   String?
+  points        Int?
+  status        IncrementStatus @default(TODO)
+  dependencies  String[]
+  reporter      User            @relation("IncrementReporter", fields: [reporterId], references: [id])
+  assignee      User            @relation("IncrementAssignee", fields: [assigneeId], references: [id])
+  startDateTime DateTime?
+  endDateTime   DateTime?
+  epic          Epic            @relation(fields: [epicId], references: [id])
+  sprint        Sprint          @relation(fields: [sprintId], references: [id])
+  project       Project         @relation(fields: [projectId], references: [id])
+  epicId        String
+  sprintId      String
+  projectId     String
+  reporterId    String
+  assigneeId    String
+
+  // index for filtering by project
+  @@index([projectId])
+  // index for filtering by epic
+  @@index([epicId, projectId])
+  // index for filtering by sprint
+  @@index([sprintId, projectId])
+  // index for filtering by reporter
+  @@index([reporterId, projectId])
+  // index for filtering by assignee
+  @@index([assigneeId, status])
+  @@map(name: "increments")
+}
+
+model ProjectHistory {
+  id        String   @id @default(cuid())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Increments by status
+  totalIncrements      Int
+  todoIncrements       Int
+  inProgressIncrements Int
+  testingIncrements    Int
+  doneIncrements       Int
+  blockedIncrements    Int
+
+  // Points by status
+  totalPoints      Int
+  todoPoints       Int
+  inProgressPoints Int
+  testingPoints    Int
+  donePoints       Int
+  blockedPoints    Int
+
+  // Costs by role
+  scrumMasterCost      Int
+  productOwnerCost     Int
+  projectArchitectCost Int
+  designerCost         Int
+  testerCost           Int
+  developerCost        Int
+
+  // Costs by type
+  epicCost      Int
+  userStoryCost Int
+  taskCost      Int
+  bugCost       Int
+
+  // Other costs
+  otherCosts Int
+
+  totalCost Int
+
+  margin Int
+
+  // Sentiment
+  sentiment Int
+
+  project   Project @relation(fields: [projectId], references: [id])
+  projectId String
+
+  @@index([projectId])
+  @@map(name: "project_history")
+}
+
+model ProjectOtherCost {
+  id          String   @id @default(cuid())
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  name        String
+  description String?
+  cost        Int
+  project     Project  @relation(fields: [projectId], references: [id])
+  projectId   String
+
+  @@map(name: "project_other_costs")
+}
+
+model Project {
+  id                 String               @id @default(cuid())
+  createdAt          DateTime             @default(now())
+  updatedAt          DateTime             @updatedAt
+  name               String
+  code               String
+  description        String?
+  budget             Int?
+  totalCost          Int                  @default(0)
+  margin             Int                  @default(10000) // 10000 = 100%
+  backlog            Increment[]
+  epics              Epic[]
+  sprints            Sprint[]
+  startDateTime      DateTime?
+  endDateTime        DateTime?
+  deadline           DateTime?
+  Organization       Organization?        @relation(fields: [organizationId], references: [id])
+  organizationId     String?
+  UsersOnProjects    UsersOnProjects[]
+  otherCosts         ProjectOtherCost[]
+  ProjectHistory     ProjectHistory[]
+  UserHoursOnProject UserHoursOnProject[]
+
+  @@unique([code, organizationId])
+  // index for filtering by organization
+  @@index([organizationId])
+  @@map(name: "projects")
+}
+
+model UserHoursOnProject {
+  id             String        @id @default(cuid())
+  createdAt      DateTime      @default(now())
+  updatedAt      DateTime      @updatedAt
+  date           DateTime
+  hours          Int
+  user           User          @relation(fields: [userId], references: [id])
+  userId         String
+  project        Project       @relation(fields: [projectId], references: [id])
+  projectId      String
+  organization   Organization? @relation(fields: [organizationId], references: [id])
+  organizationId String?
+
+  @@index([userId, projectId])
+  @@map(name: "user_hours_on_project")
+}
+
+model UsersOnProjects {
+  id         String   @id @default(cuid())
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  /// The price we charge the customer for this user. Copied from UsersOnOrganizations.
+  dailyRate  Int
+  /// The price we pay the user for this job. Copied from UsersOnOrganizations.
+  dailyPrice Int
+  sentiment  Int      @default(10000) // 10000 = 100%
+  user       User     @relation(fields: [userId], references: [id])
+  userId     String
+  project    Project  @relation(fields: [projectId], references: [id])
+  projectId  String
+  role       TeamRole
+
+  @@unique([userId, projectId])
+  @@map(name: "users_on_projects")
+}
+
+model User {
+  id                 String                 @id @default(cuid())
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  firstName          String?
+  lastName           String?
+  name               String?
+  email              String                 @unique
+  emailVerified      DateTime?
+  personalEmail      String?
+  certifiedEmail     String?
+  image              String?
+  accounts           Account[]
+  sessions           Session[]
+  phone              String?
+  birthDate          DateTime?
+  githubUsername     String?
+  organizations      UsersOnOrganizations[]
+  IncrementReporter  Increment[]            @relation("IncrementReporter")
+  IncrementAssignee  Increment[]            @relation("IncrementAssignee")
+  UsersOnProjects    UsersOnProjects[]
+  UserHoursOnProject UserHoursOnProject[]
+
+  @@index([email], name: "email")
+  @@index([name], name: "name")
+  @@map(name: "users")
+}
+
+model UsersOnOrganizations {
+  id                String        @id @default(cuid())
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+  role              TeamRole?
+  /// The price we charge the customer for this user.
+  dailyRate         Int?
+  /// The price we pay the user for this job.
+  dailyPrice        Int?
+  contractType      ContractType?
+  startContractDate DateTime?
+  endContractDate   DateTime?
+  hourlyCost        Int?
+  sentiment         Int           @default(10000) // 10000 = 100%
+  jiraUsername      String?
+  user              User          @relation(fields: [userId], references: [id])
+  userId            String
+  organization      Organization  @relation(fields: [organizationId], references: [id])
+  organizationId    String
+
+  @@unique([userId, organizationId])
+  @@map(name: "users_on_organizations")
+}
+
+model Organization {
+  id                 String                 @id @default(cuid())
+  createdAt          DateTime               @default(now())
+  updatedAt          DateTime               @updatedAt
+  name               String
+  description        String?
+  vat                String?
+  fiscalCode         String?
+  address            String?
+  city               String?
+  state              String?
+  zip                String?
+  country            String?
+  phone              String?
+  email              String
+  website            String?
+  logo               String?
+  members            UsersOnOrganizations[]
+  projects           Project[]
+  UserHoursOnProject UserHoursOnProject[]
+
+  @@map(name: "organizations")
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String? @db.Text
+  access_token      String? @db.Text
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String? @db.Text
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@map(name: "accounts")
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+  user         User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map(name: "sessions")
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+  @@map(name: "verification_tokens")
+}
