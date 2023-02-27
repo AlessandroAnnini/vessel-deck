@@ -1,12 +1,8 @@
 import { Inter, Outfit } from 'next/font/google';
-import AuthJs from '@/components/AuthJs';
 import './globals.css';
-
-import type { Session } from 'next-auth';
 
 interface RootLayoutProps {
   children: React.ReactNode;
-  session: Session;
 }
 
 const inter = Inter({
@@ -19,7 +15,7 @@ const outfit = Outfit({
   display: 'swap',
 });
 
-const RootLayout: React.FC<RootLayoutProps> = ({ children, session }) => {
+const RootLayout: React.FC<RootLayoutProps> = ({ children }) => {
   return (
     <html lang="en" className={`${inter.variable} ${outfit.variable}`}>
       {/*
@@ -28,7 +24,7 @@ const RootLayout: React.FC<RootLayoutProps> = ({ children, session }) => {
       */}
       <head />
       <body>
-        <AuthJs session={session}>{children}</AuthJs>
+        <div className="bg-neutral-800">{children}</div>
       </body>
     </html>
   );
