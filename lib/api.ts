@@ -20,7 +20,7 @@ export const fetcher = async ({ url, method, body, json = true }) => {
 };
 
 export const signup = (user: any) => {
-  return fetcher({ url: '/api/register', method: 'post', body: user });
+  return fetcher({ url: '/api/signup', method: 'post', body: user });
 };
 
 export const signin = (user: any) => {

@@ -45,7 +45,7 @@ const AuthForm: React.FC<AuthFormProps> = ({ mode }) => {
         await signin(formState);
       }
 
-      router.push('/home');
+      router.push('/dashboard');
       setFormState(initial);
     } catch (e) {
       console.error(e);
